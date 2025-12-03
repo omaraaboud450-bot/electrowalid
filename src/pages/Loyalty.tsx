@@ -1,17 +1,105 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
-import { Gift, QrCode, Star, Check } from 'lucide-react';
+import { Gift, QrCode, Star, Check, Camera, X } from 'lucide-react';
+import { Html5Qrcode } from 'html5-qrcode';
+import { toast } from 'sonner';
 
 const Loyalty = () => {
   const { t, language, dir } = useLanguage();
   const [points, setPoints] = useState(0);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scannerReady, setScannerReady] = useState(false);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const scannerDivRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const savedPoints = localStorage.getItem('loyaltyPoints');
     if (savedPoints) {
       setPoints(parseInt(savedPoints));
     }
+  }, []);
+
+  const startScanner = async () => {
+    try {
+      setIsScanning(true);
+      
+      // Wait for DOM to update
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const scanner = new Html5Qrcode('qr-reader');
+      scannerRef.current = scanner;
+
+      await scanner.start(
+        { facingMode: 'environment' }, // Back camera
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+        },
+        (decodedText) => {
+          // Check if scanned QR matches the loyalty URL
+          if (decodedText.includes('electro-walid') || decodedText.includes('lovableproject.com')) {
+            // Add points
+            const newPoints = points + 20;
+            setPoints(newPoints);
+            localStorage.setItem('loyaltyPoints', newPoints.toString());
+            localStorage.setItem('lastScan', Date.now().toString());
+            
+            toast.success(
+              language === 'ar' 
+                ? '🎉 مبروك! حصلت على +20 نقطة' 
+                : language === 'fr' 
+                ? '🎉 Félicitations! +20 points gagnés'
+                : '🎉 Congratulations! +20 points earned'
+            );
+            
+            stopScanner();
+          } else {
+            toast.error(
+              language === 'ar'
+                ? 'رمز QR غير صحيح'
+                : language === 'fr'
+                ? 'Code QR invalide'
+                : 'Invalid QR code'
+            );
+          }
+        },
+        () => {} // Ignore errors during scanning
+      );
+      
+      setScannerReady(true);
+    } catch (err) {
+      console.error('Scanner error:', err);
+      toast.error(
+        language === 'ar'
+          ? 'تعذر تشغيل الكاميرا. يرجى السماح بالوصول للكاميرا.'
+          : language === 'fr'
+          ? 'Impossible de démarrer la caméra. Veuillez autoriser l\'accès.'
+          : 'Could not start camera. Please allow camera access.'
+      );
+      setIsScanning(false);
+    }
+  };
+
+  const stopScanner = async () => {
+    if (scannerRef.current) {
+      try {
+        await scannerRef.current.stop();
+        scannerRef.current = null;
+      } catch (err) {
+        console.error('Error stopping scanner:', err);
+      }
+    }
+    setIsScanning(false);
+    setScannerReady(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (scannerRef.current) {
+        scannerRef.current.stop().catch(() => {});
+      }
+    };
   }, []);
 
   const steps = [
@@ -62,6 +150,52 @@ const Loyalty = () => {
               {100 - points > 0 
                 ? `${100 - points} ${language === 'ar' ? 'نقطة للهدية' : language === 'fr' ? 'points pour le cadeau' : 'points to gift'}`
                 : language === 'ar' ? '🎉 مبروك! يمكنك الحصول على هديتك' : language === 'fr' ? '🎉 Félicitations! Réclamez votre cadeau' : '🎉 Congratulations! Claim your gift'
+              }
+            </p>
+          </div>
+        </div>
+
+        {/* QR Scanner Section */}
+        <div className="max-w-md mx-auto mb-16">
+          <div className="glass-card rounded-3xl p-6 text-center">
+            <h3 className="text-2xl font-bold mb-4">
+              {language === 'ar' ? 'امسح للحصول على النقاط' : language === 'fr' ? 'Scannez pour gagner des points' : 'Scan to earn points'}
+            </h3>
+            
+            {!isScanning ? (
+              <Button 
+                onClick={startScanner}
+                size="lg"
+                className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-primary-foreground"
+              >
+                <Camera className="h-5 w-5 mr-2" />
+                {language === 'ar' ? 'افتح الكاميرا' : language === 'fr' ? 'Ouvrir la caméra' : 'Open Camera'}
+              </Button>
+            ) : (
+              <div className="space-y-4">
+                <div 
+                  id="qr-reader" 
+                  ref={scannerDivRef}
+                  className="w-full rounded-xl overflow-hidden"
+                />
+                <Button 
+                  onClick={stopScanner}
+                  variant="outline"
+                  size="lg"
+                  className="border-destructive text-destructive hover:bg-destructive/10"
+                >
+                  <X className="h-5 w-5 mr-2" />
+                  {language === 'ar' ? 'إغلاق الكاميرا' : language === 'fr' ? 'Fermer la caméra' : 'Close Camera'}
+                </Button>
+              </div>
+            )}
+            
+            <p className="text-sm text-muted-foreground mt-4">
+              {language === 'ar' 
+                ? 'وجه الكاميرا نحو رمز QR في المتجر'
+                : language === 'fr'
+                ? 'Pointez la caméra vers le code QR dans le magasin'
+                : 'Point the camera at the QR code in the store'
               }
             </p>
           </div>
@@ -129,10 +263,10 @@ const Loyalty = () => {
             </div>
             <p className="text-muted-foreground text-sm">
               {language === 'ar' 
-                ? 'امسح هذا الرمز في المتجر لكسب النقاط'
+                ? 'هذا هو رمز QR الخاص بالمتجر - امسحه بالكاميرا أعلاه'
                 : language === 'fr'
-                ? 'Scannez ce code au magasin pour gagner des points'
-                : 'Scan this code at the store to earn points'
+                ? 'Voici le code QR du magasin - scannez-le avec la caméra ci-dessus'
+                : 'This is the store QR code - scan it with the camera above'
               }
             </p>
           </div>
