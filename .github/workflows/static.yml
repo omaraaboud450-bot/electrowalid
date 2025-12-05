@@ -1,53 +1,51 @@
-# Simple workflow for deploying static content to GitHub Pages
+# اسم سير العمل (Workflow)
 name: Deploy static content to Pages
 
 on:
-  # Runs on pushes targeting the default branch
   push:
-    branches: ["none"]
+    branches: ["main"]
 
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
-
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+# تحديد الأذونات المطلوبة
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
-# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
-
 jobs:
-  # Single deploy job since we're just deploying
+  # اسم الوظيفة (Job)
   deploy:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
+      # 1. جلب الكود من المستودع
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup Pages
+
+      # 2. تثبيت بيئة Node.js (مطلوبة لتشغيل npm)
       - name: Setup Node.js
-  uses: actions/setup-node@v3
-  with:
-    node-version: '18' 
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18' # أو 20
 
-- name: Install dependencies
-  run: npm install
+      # 3. تثبيت مكتبات المشروع (dependencies)
+      - name: Install dependencies
+        run: npm install
+        
+      # 4. تشغيل أمر البناء لإنشاء مجلد 'dist'
+      - name: Build project
+        run: npm run build # الأمر الذي ينتج ملفات النشر
 
-- name: Build project
-  run: npm run build
-        uses: actions/configure-pages@v5
+      # 5. رفع الملفات الجاهزة (من مجلد 'dist' الناتج)
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Upload entire repository
-          path: '.'
+          path: './dist' # المسار إلى مجلد الإخراج بعد البناء
+
+      # 6. النشر النهائي إلى GitHub Pages
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
