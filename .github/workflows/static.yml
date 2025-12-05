@@ -1,18 +1,21 @@
 # اسم سير العمل (Workflow)
-name: Deploy static content to Pages
+name: Deploy Web Project to GitHub Pages
 
 on:
+  # التشغيل عند أي عملية دفع (Push) إلى الفرع الرئيسي
   push:
     branches: ["main"]
+  # يتيح التشغيل اليدوي من تبويب Actions
+  workflow_dispatch:
 
-# تحديد الأذونات المطلوبة
+# تحديد الأذونات المطلوبة للنشر
 permissions:
   contents: read
   pages: write
   id-token: write
 
 jobs:
-  # اسم الوظيفة (Job)
+  # الوظيفة المسؤولة عن البناء والنشر
   deploy:
     environment:
       name: github-pages
@@ -23,29 +26,32 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2. تثبيت بيئة Node.js (مطلوبة لتشغيل npm)
+      # 2. إعداد بيئة Node.js (مطلوبة لأوامر npm)
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18' # أو 20
+          node-version: '18' 
 
-      # 3. تثبيت مكتبات المشروع (dependencies)
+      # 3. تثبيت مكتبات المشروع
       - name: Install dependencies
         run: npm install
-        
-      # 4. تشغيل أمر البناء لإنشاء مجلد 'dist'
-      - name: Build project
-        run: npm run build # الأمر الذي ينتج ملفات النشر
 
-      # 5. رفع الملفات الجاهزة (من مجلد 'dist' الناتج)
+      # 4. تشغيل أمر البناء وإنشاء مجلد 'dist'
+      - name: Build project
+        run: npm run build
+
+      # 5. إعداد البيئة للنشر (إعدادات Pages)
       - name: Setup Pages
         uses: actions/configure-pages@v4
+
+      # 6. رفع الملفات الجاهزة للنشر
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './dist' # المسار إلى مجلد الإخراج بعد البناء
+          # المسار الحاسم: تحديد مجلد 'dist' للنشر فقط
+          path: './dist' 
 
-      # 6. النشر النهائي إلى GitHub Pages
+      # 7. النشر النهائي إلى GitHub Pages
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
